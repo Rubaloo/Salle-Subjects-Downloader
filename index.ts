@@ -9,6 +9,7 @@ import * as mkdirp from "mkdirp";
 var config = require('./config.json')
 
 var request = requestm.defaults({jar: true});
+var syncRequest = require('sync-request');
 
 const loginUrl: string = "http://estudy.salle.url.edu/login/index.php";
 const outputPath: string = __dirname + '/assignaturas/' || config.dowloadPath;
@@ -48,7 +49,6 @@ interface BinaryResponse {
 function extensionAllowed(ext: string) {
 
     notAllowedExt.forEach(exten => {
-        console.log('file extension: ' + ext + 'notAllowed: ' + exten );
         if(exten === ext) return false;
     });
 
@@ -98,12 +98,23 @@ function getBinary(requestParams?: {}): Promise<BinaryResponse> {
                                 resolve(response);
                                 break;
                             default:
+                                console.log('Not successful dowload: ' + res.statusCode);
                             	response = undefined;
                                 resolve(response);
                         }
                     }
                 });
         });
+}
+
+function getBinarySync(url: string): BinaryResponse {    
+        let response: BinaryResponse = { name: "", data: null};
+        var res = syncRequest('GET', url, {
+            "encoding" : null
+        });
+        console.log('Sync StatusCode: ' + res.statusCode);
+        response.data = res.getBody('utf8');
+        return response;
 }
 
 
@@ -205,7 +216,7 @@ function parseThemes(subjectPage: string) : Theme[] {
 
 	    	if(isValidTheme(theme)) {
 	    		themes.push(theme);
-	    		console.log('Theme added: ' + theme.name);
+	    		//console.log('Theme added: ' + theme.name);
 
 	    		$(element).find('ul a').each((index,element) => {
 	    			let activityName : string = $(element).text();
@@ -253,46 +264,41 @@ function login(loginUrl, user: User) : Promise<string> {
 
 
 
-/*function initProfileDownload(user: User) {
+function initProfileDownload(user: User) {
 	login(loginUrl, user)
     	.then((locationUrl) => {
-                
                 getLoginPage(locationUrl)
                 	.then(loginPage => {
                 		let subjects: Subject[] = parseSubjects(loginPage);
+                        console.log('Subjects: ', subjects.length);
 						for(let i = 0; i < subjects.length; ++i) {
 							let subject = subjects[i];
 							getResource(subject.url)
-								.then((subjectPage)) => {
+								.then(subjectPage => {
 									let themes : Theme[] = parseThemes(subjectPage);
-									
+                                    console.log('    Subject: ', subject.name);
+                                    console.log('        Themes: ', themes.length);
 										themes.forEach(theme => {
+                                            console.log('            Theme: ', theme.name);
+                                            console.log('                Activities: ', theme.activities.length);
 											theme.activities.forEach((activity,index,array) => {
-												getBinary({url: activity.url})
-		                                            .then(file => {
-		                                                if(file && file.name) {
-		                                                    let fileNameS = file.name.split(/[""]/);
-															let fileName = fileNameS[1];
-		                                                    let fileExt = fileName.split(".")[1];
-															if(extensionAllowed(fileExt)) {
-		                                                        console.log('Saving binary: ' + fileName);
-																let endPath = outputPath + subject.name + "/" + theme.name + "/";
-		                                                        mkdirp(endPath, err => {
-		                                                            fs.writeFile(endPath + fileName, file.data, err => {
-		                                                                if(err) console.log('Error writing binary ' + fileName + " " + err);
-		                                                            });
-		                                                        });
-		                                                    }
-		                                                }
-		                                            })
-		                                            .catch(err => {
-		                                                console.log('Write file error!' + err);
-		                                                Promise.reject(err);
-		                                            })
-											})
-													
-										})
-									})
+												let file = getBinarySync(activity.url);
+                                                /*if(file && file.name) {
+                                                    let fileNameS = file.name.split(/[""]/);
+													let fileName = fileNameS[1];
+                                                    let fileExt = fileName.split(".")[1];
+													//if(extensionAllowed(fileExt)) {
+                                                        let endPath = outputPath + subject.name + "/" + theme.name + "/" ;
+                                                        console.log('Saving binary: ' + endPath + fileName);
+                                                        mkdirp(endPath, err => {
+                                                            fs.writeFile(endPath + fileName, file.data, err => {
+                                                                if(err) console.log('Error writing binary ' + fileName + " " + err);
+                                                            });
+                                                        });
+                                                    //}
+                                                }*/
+									        })
+								        })
 								})
                 				.catch(err => {
 									console.log('Gettings themes error!' + err);
@@ -310,7 +316,7 @@ function login(loginUrl, user: User) : Promise<string> {
     		return Promise.reject(err);
     	});
 
-}*/
+}
 
 
 
@@ -322,8 +328,8 @@ function main() {
 	}
 	
  	
-	//initProfileDownload(user);
-	enableTests();
+	initProfileDownload(user);
+	//enableTests();
 	//testThemes(subjectResponse);
 	//testThemes("http://estudy.salle.url.edu/course/view.php?id=9886");
     
@@ -341,9 +347,10 @@ function enableTests() {
  	//testGetMoreSubjectsUrl(fs.readFileSync('loginPage.html','utf8'));
  	let subjects : Subject[] = testParseSubjects(fs.readFileSync('loginPage.html','utf8'));
  	console.log('Subjects: ' + subjects.length);
+     printObjects(subjects, ['name']);
  	let themes : Theme[] = testParseSubjectThemes(fs.readFileSync('subjectPage.html','utf8'));
-    console.log('Themes: ' + themes.length);
- 	printObjects(themes, ['name', 'activities']);
+    //console.log('Themes: ' + themes.length);
+ 	//printObjects(themes, ['name', 'activities']);
  
  	//let subjectsUpdated = testGetThemes(fs.readFileSync(subjects,'utf8'));
 }
