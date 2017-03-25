@@ -113,7 +113,9 @@ function getBinarySync(url: string): BinaryResponse {
             "encoding" : null
         });
         console.log('Sync StatusCode: ' + res.statusCode);
+        response.name = res.headers['content-disposition'];
         response.data = res.getBody('utf8');
+        console.log('File name: ' + response.name);
         return response;
 }
 
@@ -181,8 +183,8 @@ function getMoreSubjectsUrl(subjectsUrl: string): Promise<string> {
 function parseSubjects(loginPage) : Subject[] {
     let subjects: Subject[] = [];
     let $ = cheerio.load(loginPage);
-
-    $('div .block_course_list.block.list_block .content a').each((index,element) => {
+    
+    $('div .course_title a').each((index,element) => {
         let subjectName = $(element).text();
 
         if(subjectName) {
@@ -269,6 +271,7 @@ function initProfileDownload(user: User) {
     	.then((locationUrl) => {
                 getLoginPage(locationUrl)
                 	.then(loginPage => {
+                        console.log('location Url ' + locationUrl);
                 		let subjects: Subject[] = parseSubjects(loginPage);
                         console.log('Subjects: ', subjects.length);
 						for(let i = 0; i < subjects.length; ++i) {
@@ -283,11 +286,11 @@ function initProfileDownload(user: User) {
                                             console.log('                Activities: ', theme.activities.length);
 											theme.activities.forEach((activity,index,array) => {
 												let file = getBinarySync(activity.url);
-                                                /*if(file && file.name) {
+                                                if(file && file.name) {
                                                     let fileNameS = file.name.split(/[""]/);
 													let fileName = fileNameS[1];
                                                     let fileExt = fileName.split(".")[1];
-													//if(extensionAllowed(fileExt)) {
+													if(extensionAllowed(fileExt)) {
                                                         let endPath = outputPath + subject.name + "/" + theme.name + "/" ;
                                                         console.log('Saving binary: ' + endPath + fileName);
                                                         mkdirp(endPath, err => {
@@ -295,8 +298,8 @@ function initProfileDownload(user: User) {
                                                                 if(err) console.log('Error writing binary ' + fileName + " " + err);
                                                             });
                                                         });
-                                                    //}
-                                                }*/
+                                                    }
+                                                }
 									        })
 								        })
 								})
@@ -347,7 +350,7 @@ function enableTests() {
  	//testGetMoreSubjectsUrl(fs.readFileSync('loginPage.html','utf8'));
  	let subjects : Subject[] = testParseSubjects(fs.readFileSync('loginPage.html','utf8'));
  	console.log('Subjects: ' + subjects.length);
-     printObjects(subjects, ['name']);
+    printObjects(subjects, ['name']);
  	let themes : Theme[] = testParseSubjectThemes(fs.readFileSync('subjectPage.html','utf8'));
     //console.log('Themes: ' + themes.length);
  	//printObjects(themes, ['name', 'activities']);
